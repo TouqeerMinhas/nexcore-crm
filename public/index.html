@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <title>
+   NexCore CRM
+  </title>
+  <link href="/styles.css" rel="stylesheet"/>
+ </head>
+ <body>
+  <div class="screen" id="login">
+   <div class="login-card">
+    <div class="login-logo-wrap">
+     <img alt="Agency logo" class="logo-image login-logo hidden" id="loginLogo"/>
+     <div class="brand-mark" id="loginLogoFallback">
+      NC
+     </div>
+    </div>
+    <h1>
+     NexCore CRM
+    </h1>
+    <p>
+     Cold Calling &amp; Lead Management
+    </p>
+    <form id="loginForm">
+     <label>
+      Email
+      <input id="email" required="" type="email" value="admin@nexcore.local"/>
+     </label>
+     <label>
+      Password
+      <input id="password" required="" type="password" value="admin123"/>
+     </label>
+     <button class="primary" type="submit">
+      Sign in
+     </button>
+    </form>
+    <button class="text-button" id="forgotPasswordBtn" type="button">
+     Forgot password?
+    </button>
+    <small>
+     Demo admin: admin@nexcore.local / admin123
+    </small>
+   </div>
+
+   <div class="login-card hidden" id="resetPasswordCard">
+    <div class="login-logo-wrap">
+     <img alt="Agency logo" class="logo-image login-logo hidden" id="resetLogo"/>
+     <div class="brand-mark" id="resetLogoFallback">
+      NC
+     </div>
+    </div>
+
+    <h1>Reset Password</h1>
+    <p>Enter your CRM account email. We will send a 6-digit code valid for 10 minutes.</p>
+
+    <form id="forgotPasswordForm">
+     <label>
+      Account Email
+      <input id="resetEmail" required type="email" placeholder="you@company.com"/>
+     </label>
+
+     <button class="primary" id="sendResetCodeBtn" type="submit">
+      Send Reset Code
+     </button>
+    </form>
+
+    <form class="hidden" id="completeResetForm">
+     <label>
+      Verification Code
+      <input id="resetCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="123456" required/>
+     </label>
+
+     <label>
+      New Password
+      <input id="newPassword" minlength="6" type="password" required/>
+     </label>
+
+     <label>
+      Confirm New Password
+      <input id="confirmPassword" minlength="6" type="password" required/>
+     </label>
+
+     <button class="primary" id="resetPasswordBtn" type="submit">
+      Reset Password
+     </button>
+
+     <button class="text-button" id="resendResetCodeBtn" type="button">
+      Send code again
+     </button>
+    </form>
+
+    <button class="text-button" id="backToLoginBtn" type="button">
+     Back to login
+    </button>
+
+    <small id="resetMessage"></small>
+   </div>
+  </div>
+  <div class="hidden" id="app">
+   <aside>
+    <div class="brand">
+     <div class="brand-mark small" id="sidebarLogoFallback">
+      NC
+     </div>
+     <img alt="Agency logo" class="logo-image sidebar-logo hidden" id="sidebarLogo"/>
+     <div>
+      <strong>
+       NexCore
+      </strong>
+      <span>
+       CRM
+      </span>
+     </div>
+    </div>
+    <nav>
+     <button data-view="dashboard">
+      Dashboard
+     </button>
+     <button data-view="clients">
+      Clients
+     </button>
+     <button class="followup-nav" data-view="followups">
+      Follow-ups
+      <span class="nav-badge hidden" id="followupBadge">
+       0
+      </span>
+     </button>
+     <button data-view="calls">
+      Call Recordings
+     </button>
+     <button class="adminOnly" data-view="callers" id="callersNav">
+      Callers
+     </button>
+     <button class="adminOnly" data-view="branding" id="brandingNav">
+      Agency Branding
+     </button>
+    </nav>
+    <div class="userbox">
+     <div id="userName">
+     </div>
+     <div id="userRole">
+     </div>
+     <button class="ghost" id="logout">
+      Logout
+     </button>
+    </div>
+   </aside>
+   <main>
+    <header>
+     <div>
+      <h2 id="pageTitle">
+       Dashboard
+      </h2>
+      <p id="subTitle">
+       Sales activity overview
+      </p>
+     </div>
+     <div class="header-actions">
+      <button class="primary" id="newClientBtn">
+       + Add Client
+      </button>
+      <button class="secondary" id="importBtn">
+       Import Excel
+      </button>
+      <input accept=".xlsx,.xls,.csv" hidden="" id="excelFile" type="file"/>
+     </div>
+    </header>
+    <section class="view" id="dashboardView">
+     <div class="dashboard-reminder hidden" id="dashboardReminder">
+     </div>
+     <div class="stats">
+      <div class="stat">
+       <span>
+        Total Leads
+       </span>
+       <b id="statClients">
+        0
+       </b>
+      </div>
+      <div class="stat">
+       <span>
+        Calls Logged
+       </span>
+       <b id="statCalls">
+        0
+       </b>
+      </div>
+      <div class="stat">
+       <span>
+        Due Follow-ups
+       </span>
+       <b id="statFollowups">
+        0
+       </b>
+      </div>
+      <div class="stat accent">
+       <span>
+        Closed Won
+       </span>
+       <b id="statWins">
+        0
+       </b>
+      </div>
+     </div>
+     <div class="panel">
+      <div class="panel-head">
+       <h3>
+        Performance Overview
+       </h3>
+       <span id="chartSubtitle">
+        Lead progress at a glance
+       </span>
+      </div>
+      <div class="performance-grid" id="performanceGrid">
+      </div>
+     </div>
+     <div class="panel">
+      <div class="panel-head">
+       <h3>
+        Pipeline
+       </h3>
+      </div>
+      <div class="pipeline" id="pipeline">
+      </div>
+     </div>
+     <div class="panel">
+      <div class="panel-head">
+       <h3>
+        My Progress
+       </h3>
+       <span id="progressText">
+       </span>
+      </div>
+      <div class="progress">
+       <div id="progressBar">
+       </div>
+      </div>
+     </div>
+    </section>
+    <section class="view hidden" id="followupsView">
+     <div class="panel followups-panel">
+      <div class="panel-head">
+       <div>
+        <h3>
+         Follow-up Center
+        </h3>
+        <span id="followupSubtitle">
+         Your scheduled follow-up calls
+        </span>
+       </div>
+       <div class="followup-actions">
+        <button class="secondary" id="enableFollowupNotificationsBtn" type="button">
+         Enable Browser Reminders
+        </button>
+        <button class="secondary" id="refreshFollowupsBtn" type="button">
+         Refresh
+        </button>
+       </div>
+      </div>
+      <div class="followup-summary" id="followupSummary">
+      </div>
+      <div class="followup-list" id="followupList">
+      </div>
+     </div>
+    </section>
+    <section class="view hidden" id="clientsView">
+     <div class="toolbar">
+      <input id="search" placeholder="Search company, person, phone..."/>
+      <select id="statusFilter">
+       <option value="">
+        All statuses
+       </option>
+      </select>
+      <select class="adminOnly" id="callerFilter">
+       <option value="">
+        All callers
+       </option>
+      </select>
+     </div>
+     <div class="table-wrap">
+      <table>
+       <thead>
+        <tr>
+         <th>
+          Phone
+         </th>
+         <th>
+          Company / Contact
+         </th>
+         <th>
+          Email
+         </th>
+         <th>
+          Status
+         </th>
+         <th>
+          Next Follow-up
+         </th>
+         <th>
+          Contacted Via
+         </th>
+         <th>
+          Deal Domain
+         </th>
+         <th>
+          Caller
+         </th>
+         <th>
+         </th>
+        </tr>
+       </thead>
+       <tbody id="clientsBody">
+       </tbody>
+      </table>
+     </div>
+    </section>
+    <section class="view hidden" id="callsView">
+     <div class="panel">
+      <div class="panel-head">
+       <h3>
+        Call Recordings
+       </h3>
+       <span>
+        Recordings uploaded from callers appear here.
+       </span>
+      </div>
+      <div id="allCalls">
+      </div>
+     </div>
+    </section>
+    <section class="view hidden adminOnly" id="callersView">
+     <div class="panel">
+      <div class="panel-head">
+       <h3>
+        Caller Accounts
+       </h3>
+       <button class="primary" id="newCallerBtn">
+        + Add Caller
+       </button>
+      </div>
+      <div id="callerList">
+      </div>
+     </div>
+    </section>
+    <section class="view hidden adminOnly" id="brandingView">
+     <div class="panel">
+      <div class="panel-head">
+       <h3>
+        Agency Branding
+       </h3>
+       <span>
+        Your logo appears across the CRM.
+       </span>
+      </div>
+      <div class="branding-preview">
+       <div class="brand-mark branding-fallback" id="brandingPreviewFallback">
+        NC
+       </div>
+       <img alt="Agency logo preview" class="branding-logo hidden" id="brandingPreviewLogo"/>
+      </div>
+      <form id="logoForm">
+       <label>
+        Agency Logo
+        <input accept="image/png,image/jpeg,image/webp,image/svg+xml" id="logoFile" name="logo" type="file"/>
+       </label>
+       <div class="muted branding-note">
+        Recommended: transparent PNG, square or horizontal logo. Max 30 MB.
+       </div>
+       <div class="form-actions">
+        <button class="secondary" id="removeLogoBtn" type="button">
+         Remove Logo
+        </button>
+        <button class="primary">
+         Upload / Replace Logo
+        </button>
+       </div>
+      </form>
+     </div>
+    </section>
+   </main>
+  </div>
+  <div class="modal hidden" id="modal">
+   <div class="modal-card">
+    <button class="close" id="closeModal">
+     &times;
+    </button>
+    <div id="modalContent">
+    </div>
+   </div>
+  </div>
+  <script src="/app.js">
+  </script>
+ </body>
+</html>

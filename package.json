@@ -1,0 +1,22 @@
+{
+  "name": "nexcore-cold-calling-crm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NexCore IT Agency cold-calling CRM MVP",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.23.3",
+    "nodemailer": "^7.0.6",
+    "uuid": "^11.1.0",
+    "xlsx": "^0.18.5"
+  }
+}
