@@ -1,103 +1,262 @@
-// migrate.js
-const pool = require('./config/db');
-const bcrypt = require('bcryptjs');
-const { v4: uuid } = require('uuid');
+const fs = require('fs');
+const path = require('path');
+const db = require('./db');
+
+function toMySQLDate(value) {
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString().slice(0, 19).replace('T', ' ');
+}
 
 async function migrate() {
+  const file = path.join(__dirname, 'data', 'db.json');
+  const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+
+  const connection = await db.getConnection();
+
   try {
-    console.log('Starting MySQL Migration for Hostinger...');
+    await connection.beginTransaction();
 
-    // 1. Users Table (Callers & Admin)
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(36) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        passwordHash VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'caller',
-        active BOOLEAN DEFAULT TRUE,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `);
+    console.log('Starting NexCore CRM migration...');
 
-    // 2. Clients Table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS clients (
-        id VARCHAR(36) PRIMARY KEY,
-        company VARCHAR(255),
-        contactName VARCHAR(255),
-        phone VARCHAR(100),
-        email VARCHAR(255),
-        website VARCHAR(255),
-        linkedin VARCHAR(255),
-        address TEXT,
-        status VARCHAR(100) DEFAULT 'Not Contacted',
-        nextFollowUp DATETIME NULL,
-        dealDomain VARCHAR(100),
-        notes TEXT,
-        assignedTo VARCHAR(36),
-        contactChannels JSON,
-        importedBy VARCHAR(36),
-        importedByRole VARCHAR(50),
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 3. Calls Table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS calls (
-        id VARCHAR(36) PRIMARY KEY,
-        clientId VARCHAR(36),
-        callerId VARCHAR(36),
-        channel VARCHAR(50) DEFAULT 'Call',
-        outcome VARCHAR(100),
-        notes TEXT,
-        duration VARCHAR(50),
-        recordingUrl VARCHAR(255),
-        externalCallId VARCHAR(255),
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 4. Password Resets Table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS passwordResets (
-        id VARCHAR(36) PRIMARY KEY,
-        userId VARCHAR(36) NOT NULL,
-        codeHash VARCHAR(255) NOT NULL,
-        expiresAt BIGINT NOT NULL,
-        attempts INT DEFAULT 0,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // 5. Settings Table (For Logo URL)
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS settings (
-        setting_key VARCHAR(100) PRIMARY KEY,
-        setting_value TEXT
-      )
-    `);
-
-    // Insert Default Admin
-    const [adminRows] = await pool.query('SELECT id FROM users WHERE role = ?', ['admin']);
-    if (adminRows.length === 0) {
-      const adminId = uuid();
-      const passHash = bcrypt.hashSync('admin123', 10);
-      await pool.query(
-        'INSERT INTO users (id, name, email, passwordHash, role, active) VALUES (?, ?, ?, ?, ?, ?)',
-        [adminId, 'NexCore Admin', 'admin@nexcore.local', passHash, 'admin', true]
+    /*
+     * USERS
+     */
+    for (const user of json.users || []) {
+      await connection.execute(
+        `INSERT INTO users
+        (id, name, email, passwordHash, role, active, createdAt, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          name = VALUES(name),
+          email = VALUES(email),
+          passwordHash = VALUES(passwordHash),
+          role = VALUES(role),
+          active = VALUES(active),
+          updatedAt = VALUES(updatedAt)`,
+        [
+          user.id,
+          user.name,
+          user.email,
+          user.passwordHash,
+          user.role,
+          user.active !== false ? 1 : 0,
+          toMySQLDate(user.createdAt),
+          toMySQLDate(user.updatedAt)
+        ]
       );
-      console.log('Default Admin created: admin@nexcore.local / admin123');
     }
 
-    console.log('Migration completed successfully!');
-    process.exit(0);
+    console.log(`Users migrated: ${(json.users || []).length}`);
+
+    /*
+     * CLIENTS
+     */
+    for (const client of json.clients || []) {
+      await connection.execute(
+        `INSERT INTO clients
+        (
+          id,
+          company,
+          contactName,
+          phone,
+          email,
+          website,
+          linkedin,
+          address,
+          status,
+          nextFollowUp,
+          contactChannels,
+          dealDomain,
+          notes,
+          assignedTo,
+          importedBy,
+          importedByRole,
+          createdAt,
+          updatedAt
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          company = VALUES(company),
+          contactName = VALUES(contactName),
+          phone = VALUES(phone),
+          email = VALUES(email),
+          website = VALUES(website),
+          linkedin = VALUES(linkedin),
+          address = VALUES(address),
+          status = VALUES(status),
+          nextFollowUp = VALUES(nextFollowUp),
+          contactChannels = VALUES(contactChannels),
+          dealDomain = VALUES(dealDomain),
+          notes = VALUES(notes),
+          assignedTo = VALUES(assignedTo),
+          importedBy = VALUES(importedBy),
+          importedByRole = VALUES(importedByRole),
+          updatedAt = VALUES(updatedAt)`,
+        [
+          client.id,
+          client.company || '',
+          client.contactName || '',
+          client.phone || '',
+          client.email || '',
+          client.website || '',
+          client.linkedin || '',
+          client.address || '',
+          client.status || 'Not Contacted',
+          client.nextFollowUp
+            ? toMySQLDate(client.nextFollowUp)
+            : null,
+          JSON.stringify(client.contactChannels || []),
+          client.dealDomain || '',
+          client.notes || '',
+          client.assignedTo || null,
+          client.importedBy || null,
+          client.importedByRole || null,
+          toMySQLDate(client.createdAt),
+          toMySQLDate(client.updatedAt)
+        ]
+      );
+    }
+
+    console.log(`Clients migrated: ${(json.clients || []).length}`);
+
+    /*
+     * CALLS
+     */
+    for (const call of json.calls || []) {
+      await connection.execute(
+        `INSERT INTO calls
+        (
+          id,
+          clientId,
+          callerId,
+          channel,
+          outcome,
+          notes,
+          duration,
+          recordingUrl,
+          externalCallId,
+          createdAt
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          clientId = VALUES(clientId),
+          callerId = VALUES(callerId),
+          channel = VALUES(channel),
+          outcome = VALUES(outcome),
+          notes = VALUES(notes),
+          duration = VALUES(duration),
+          recordingUrl = VALUES(recordingUrl),
+          externalCallId = VALUES(externalCallId)`,
+        [
+          call.id,
+          call.clientId,
+          call.callerId,
+          call.channel || 'Call',
+          call.outcome || '',
+          call.notes || '',
+          call.duration || '',
+          call.recordingUrl || '',
+          call.externalCallId || '',
+          toMySQLDate(call.createdAt)
+        ]
+      );
+    }
+
+    console.log(`Calls migrated: ${(json.calls || []).length}`);
+
+    /*
+     * ACTIVITIES
+     */
+    for (const activity of json.activities || []) {
+      await connection.execute(
+        `INSERT INTO activities
+        (id, userId, clientId, type, description, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          userId = VALUES(userId),
+          clientId = VALUES(clientId),
+          type = VALUES(type),
+          description = VALUES(description)`,
+        [
+          activity.id,
+          activity.userId || null,
+          activity.clientId || null,
+          activity.type || '',
+          activity.description || '',
+          toMySQLDate(activity.createdAt)
+        ]
+      );
+    }
+
+    console.log(`Activities migrated: ${(json.activities || []).length}`);
+
+    /*
+     * SETTINGS
+     */
+    await connection.execute(
+  `INSERT INTO settings (setting_key, setting_value)
+   VALUES (?, ?)
+   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+  [
+    'logoUrl',
+    json.settings?.logoUrl || ''
+  ]
+);
+
+console.log('Settings migrated.');
+
+    /*
+     * PASSWORD RESETS
+     */
+    for (const reset of json.passwordResets || []) {
+      await connection.execute(
+        `INSERT INTO passwordResets
+        (id, userId, codeHash, expiresAt, attempts, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          codeHash = VALUES(codeHash),
+          expiresAt = VALUES(expiresAt),
+          attempts = VALUES(attempts)`,
+        [
+          reset.id,
+          reset.userId,
+          reset.codeHash,
+          reset.expiresAt,
+          reset.attempts || 0,
+          toMySQLDate(reset.createdAt)
+        ]
+      );
+    }
+
+    console.log(
+      `Password resets migrated: ${(json.passwordResets || []).length}`
+    );
+
+    await connection.commit();
+
+    console.log('');
+    console.log('======================================');
+    console.log('NexCore CRM migration completed!');
+    console.log('======================================');
+
   } catch (error) {
-    console.error('Migration failed:', error);
-    process.exit(1);
+    await connection.rollback();
+
+    console.error('');
+    console.error('Migration failed.');
+    console.error(error);
+
+    process.exitCode = 1;
+  } finally {
+    connection.release();
+    await db.end();
   }
 }
 
