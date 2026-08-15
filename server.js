@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const XLSX = require('xlsx');
@@ -26,19 +27,22 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'change-this-nexcore-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 1000 * 60 * 60 * 12,
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production'
-    }
-  })
-);
+// MySQL Session Store Setup
+const sessionStore = new MySQLStore({
+  clearExpired: true,
+  checkExpirationInterval: 900000, // Har 15 minute baad expired sessions clean karega
+  expiration: 86400000, // Session 1 din tak valid rahega
+  createDatabaseTable: true // Yeh Hostinger mein automatically 'sessions' ki table bana dega
+}, pool);
+
+app.use(session({
+  key: 'nexcore_session_cookie',
+  secret: process.env.SESSION_SECRET || 'change-this-nexcore-secret',
+  store: sessionStore, // Vercel ab RAM ke bajaye MySQL mein data save karega
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 1000 * 60 * 60 * 12, httpOnly: true }
+}));
 
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(express.static(path.join(ROOT, 'public')));
