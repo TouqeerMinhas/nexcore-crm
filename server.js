@@ -2507,11 +2507,6 @@ app.use(
 // START SERVER
 // ======================================================
 
-app.listen(
-  PORT,
-  () => {
-    console.log(
-      `NexCore CRM running at http://localhost:${PORT}`
-    );
-  }
-);
+app.use((req,res)=> res.sendFile(path.join(ROOT,'public','index.html')));
+
+module.exports = app;
