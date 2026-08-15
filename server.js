@@ -17,10 +17,8 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-// Agar Vercel par run ho raha hai toh /tmp/uploads use karo, warna local uploads folder
-const isVercel = process.env.VERCEL || process.env.AWS_REGION; 
-const UPLOAD_DIR = isVercel ? '/tmp/uploads' : path.join(ROOT, 'uploads');
-
+// Bullet-proof Vercel check: Agar code /var/task mein run ho raha hai toh direct /tmp use karo
+const UPLOAD_DIR = ROOT.includes('/var/task') ? '/tmp' : path.join(ROOT, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 app.use(express.json({ limit: '10mb' }));
