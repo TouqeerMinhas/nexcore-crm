@@ -2,7 +2,6 @@ require('dotenv').config();
 
 const express = require('express');
 const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const XLSX = require('xlsx');
@@ -27,22 +26,19 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// MySQL Session Store Setup
-const sessionStore = new MySQLStore({
-  clearExpired: true,
-  checkExpirationInterval: 900000, // Har 15 minute baad expired sessions clean karega
-  expiration: 86400000, // Session 1 din tak valid rahega
-  createDatabaseTable: true // Yeh Hostinger mein automatically 'sessions' ki table bana dega
-}, pool);
-
-app.use(session({
-  key: 'nexcore_session_cookie',
-  secret: process.env.SESSION_SECRET || 'change-this-nexcore-secret',
-  store: sessionStore, // Vercel ab RAM ke bajaye MySQL mein data save karega
-  resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 12, httpOnly: true }
-}));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'change-this-nexcore-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 12,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
+    }
+  })
+);
 
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(express.static(path.join(ROOT, 'public')));
@@ -263,9 +259,27 @@ async function getClientForViewer(req, clientId) {
 // SETTINGS / LOGO
 // ======================================================
 
-app.get('/api/settings/logo', async (req,res)=>{ 
-  // Direct public folder wale logo ka path return karega
-  res.json({ logoUrl: '/company-logo.png' }); 
+app.get('/api/settings/logo', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('logo_url')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    res.json({
+      logoUrl: data?.logo_url || ''
+    });
+
+  } catch (error) {
+    console.error('Logo fetch error:', error);
+
+    res.status(500).json({
+      error: 'Could not load logo'
+    });
+  }
 });
 
 
