@@ -259,27 +259,9 @@ async function getClientForViewer(req, clientId) {
 // SETTINGS / LOGO
 // ======================================================
 
-app.get('/api/settings/logo', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('settings')
-      .select('logo_url')
-      .eq('id', 1)
-      .maybeSingle();
-
-    if (error) throw error;
-
-    res.json({
-      logoUrl: data?.logo_url || ''
-    });
-
-  } catch (error) {
-    console.error('Logo fetch error:', error);
-
-    res.status(500).json({
-      error: 'Could not load logo'
-    });
-  }
+app.get('/api/settings/logo', async (req,res)=>{ 
+  // Direct public folder wale logo ka path return karega
+  res.json({ logoUrl: '/company-logo.png' }); 
 });
 
 
